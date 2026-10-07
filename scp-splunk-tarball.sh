@@ -8,6 +8,7 @@ fi
 
 loginuser=$1
 destserver=$2
+remote="${loginuser}@${destserver}"
 
 shopt -s nullglob
 tarballs=(./splunk-*.tgz ./splunkforwarder-*.tgz)
@@ -22,4 +23,5 @@ if (( ${#tarballs[@]} > 1 )); then
     exit 1
 fi
 
-scp -- "${tarballs[0]}" "${loginuser}@${destserver}:"
+ssh -- "$remote" 'mkdir -p "$HOME/Downloads"'
+scp -- "${tarballs[0]}" "${remote}:~/Downloads/"
