@@ -57,14 +57,14 @@ pgrep -af '[s]plunk'
 ```
 
 ## Installer tarball reuse and cleanup
-Search for an existing Splunk Enterprise installer tarball before downloading another copy. Reuse it only if its version/build matches the intended install, and verify its checksum against the official download:
+Check the user's `~/Downloads` directory for a Splunk Enterprise installer tarball before downloading. If one is found, use that file and do not download another copy from the internet. Confirm that its version/build matches the intended install and verify its checksum against the official download:
 
 ```bash
-find "$HOME" -type f \( -name 'splunk-*.tgz' -o -name 'splunk-*.tar.gz' \) -print
+find "$HOME/Downloads" -maxdepth 1 -type f \\( -name 'splunk-*.tgz' -o -name 'splunk-*.tar.gz' \\) -print
 sha512sum "$INSTALL_TARBALL"
 ```
 
-Set `INSTALL_TARBALL` to the selected archive path. Keep the archive after installation by default; opt into cleanup only after a successful install by setting `KEEP_INSTALL_TARBALL=false`:
+Set `INSTALL_TARBALL` to the existing archive path when one is found. If the version/build does not match, stop and resolve the mismatch rather than downloading another copy. Download the official tarball into `~/Downloads` only when the search finds no tarball. Keep the archive after installation by default; opt into cleanup only after a successful install by setting `KEEP_INSTALL_TARBALL=false`:
 
 ```bash
 KEEP_INSTALL_TARBALL="${KEEP_INSTALL_TARBALL:-true}"
