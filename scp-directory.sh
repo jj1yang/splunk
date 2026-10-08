@@ -16,4 +16,8 @@ if [[ ! -d "$directory" ]]; then
     exit 1
 fi
 
+if [[ "$directory" != /* ]]; then
+    directory="./$directory"
+fi
+
 scp -r -- "$directory" "${remote}:~/"
