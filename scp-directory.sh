@@ -4,6 +4,7 @@ set -euo pipefail
 
 if [[ $# -ne 3 ]]; then
     printf 'Usage: %s LOGINUSER DESTSERVER[,DESTSERVER...] DIRECTORY\n' "$0" >&2
+    printf 'Set SSHPASS to supply the SSH password without prompting.\n' >&2
     exit 2
 fi
 
@@ -42,11 +43,16 @@ if ! command -v sshpass >/dev/null 2>&1; then
 fi
 
 trap 'unset password' EXIT
-if ! read -r -s -p "SSH password for ${loginuser}: " password; then
-    printf '\nError: unable to read the SSH password.\n' >&2
-    exit 1
+if [[ ${SSHPASS+x} ]]; then
+    password=$SSHPASS
+    unset SSHPASS
+else
+    if ! read -r -s -p "SSH password for ${loginuser}: " password; then
+        printf '\nError: unable to read the SSH password.\n' >&2
+        exit 1
+    fi
+    printf '\n' >&2
 fi
-printf '\n' >&2
 if [[ -z "$password" ]]; then
     printf 'Error: the SSH password must not be empty.\n' >&2
     exit 1

@@ -23,6 +23,7 @@ class ScpDirectoryTests(unittest.TestCase):
         sshpass = bindir / "sshpass"
         sshpass.write_text(
             '#!/bin/sh\n'
+            '[ "${SSHPASS+x}" != x ] || exit 93\n'
             '[ "$1" = "-d" ] && [ "$2" = "3" ] || exit 90\n'
             'IFS= read -r password <&3 || exit 91\n'
             '[ "$password" = \'test password\\with spaces\' ] || exit 92\n'
@@ -33,6 +34,7 @@ class ScpDirectoryTests(unittest.TestCase):
         self.bindir = bindir
         self.env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}",
                     "MOCK_SCP_EXIT": "0"}
+        self.env.pop("SSHPASS", None)
 
     def run_script(self, *args, password="test password\\with spaces\n"):
         return subprocess.run(
@@ -78,6 +80,25 @@ class ScpDirectoryTests(unittest.TestCase):
                              "./normal", f"user@{server}:~/"])
         self.assertEqual(result.stdout.splitlines(), expected)
         self.assertNotIn("test password", result.stdout + result.stderr)
+
+    def test_environment_password_without_stdin(self):
+        (self.root / "normal").mkdir()
+        self.env["SSHPASS"] = "test password\\with spaces"
+        result = self.run_script("user", "server1,server2", "normal", password="")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("user@server1:~/", result.stdout)
+        self.assertIn("user@server2:~/", result.stdout)
+        self.assertEqual(result.stderr, "")
+        self.assertNotIn(self.env["SSHPASS"], result.stdout)
+
+    def test_empty_environment_password_does_not_prompt(self):
+        (self.root / "normal").mkdir()
+        self.env["SSHPASS"] = ""
+        result = self.run_script("user", "server", "normal")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("must not be empty", result.stderr)
+        self.assertNotIn("SSH password for", result.stderr)
+        self.assertEqual(result.stdout, "")
 
     def test_invalid_server_lists(self):
         (self.root / "normal").mkdir()

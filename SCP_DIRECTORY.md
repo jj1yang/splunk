@@ -25,7 +25,20 @@ For multiple servers, separate hostnames or IPv4 addresses with commas, without 
 ./scp-directory.sh jimy jyang02u,jyang04u.sv.splunk.com,192.0.2.10 'Configurations - Base'
 ```
 
-The script prompts once for the SSH password with input hidden, then reuses it for every server. The password is passed to `sshpass` through a file descriptor, not command-line arguments, environment variables, or a password file. Do not run the script with verbose shell tracing (`bash -v`).
+## Authentication
+
+When `SSHPASS` is unset, the script prompts once for the SSH password with input hidden, then reuses it for every server. Set and export `SSHPASS` to skip the prompt. An empty `SSHPASS` is rejected.
+
+For unattended jobs, inject `SSHPASS` from a secret manager or your automation platform's secret environment. For manual use, read it securely rather than typing the password into a command:
+
+```bash
+read -rsp 'SSH password: ' SSHPASS; printf '\n'
+export SSHPASS
+./scp-directory.sh jimy jyang02u,jyang04u.sv.splunk.com 'Configurations - Base'
+unset SSHPASS
+```
+
+The password is passed to `sshpass` through a file descriptor, not command-line arguments or a password file. The script unsets `SSHPASS` in its own environment before starting transfers; it remains in the calling shell until you unset it there. Do not hard-code passwords or enable shell tracing when loading credentials. Do not run the script with verbose shell tracing (`bash -v`).
 
 Host-key verification is required (`StrictHostKeyChecking=yes`). Before running the script, connect to each server using `ssh LOGINUSER DESTSERVER`, verify its host-key fingerprint through a trusted source, and accept the verified key. Unknown or changed host keys cause the transfer to fail; the script does not automatically trust them.
 
