@@ -66,6 +66,18 @@ class ScpSplunkTarballTests(unittest.TestCase):
                     ])
                 self.assertEqual(self.calls(), expected)
                 self.assertNotIn("synthetic-test-value", result.stdout + result.stderr)
+                expected_output = []
+                for server in servers.split(","):
+                    destination = f"user@{server}:~/Downloads/"
+                    expected_output.extend([
+                        f"Copying ./splunk-test.tgz to {destination}",
+                        f"File transfer finished: ./splunk-test.tgz to {destination}",
+                    ])
+                expected_output.append(
+                    "All file transfers finished successfully "
+                    f"({len(servers.split(','))} host(s))."
+                )
+                self.assertEqual(result.stdout.splitlines(), expected_output)
 
     def test_invalid_servers_do_not_connect(self):
         for servers in ("", ",server", "server,", "server,,other",
@@ -116,6 +128,8 @@ class ScpSplunkTarballTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 7)
                 self.assertNotIn("user@server2", self.calls())
                 self.assertEqual(self.calls().count("scp"), command == "scp")
+                self.assertNotIn("File transfer finished:", result.stdout)
+                self.assertNotIn("All file transfers finished successfully", result.stdout)
 
 
 if __name__ == "__main__":

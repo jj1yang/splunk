@@ -61,4 +61,6 @@ for destserver in "${servers[@]}"; do
         'mkdir -p "$HOME/Downloads"' 3< <(printf '%s\n' "$password")
     sshpass -d 3 scp -o StrictHostKeyChecking=yes -- \
         "${tarballs[0]}" "${remote}:~/Downloads/" 3< <(printf '%s\n' "$password")
+    printf 'File transfer finished: %s to %s:~/Downloads/\n' "${tarballs[0]}" "$remote"
 done
+printf 'All file transfers finished successfully (%d host(s)).\n' "${#servers[@]}"

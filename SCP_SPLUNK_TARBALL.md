@@ -15,6 +15,7 @@ For example:
 ```
 
 Use hostnames or IPv4 addresses separated by commas without spaces. A single host is still supported.
+After each successful copy, the script prints `File transfer finished:` with the archive and destination. When all copies succeed, it prints `All file transfers finished successfully (N host(s)).`, where `N` is the number of destination hosts. Completion messages are only printed after successful transfers; a failure prevents the final success message.
 
 ### Requirements and authentication
 - Install `sshpass` (for example, `sudo apt install sshpass` on Ubuntu). On macOS, install a macOS-compatible `sshpass` package from a trusted package source.
