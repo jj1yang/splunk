@@ -1,4 +1,8 @@
-#!/bin/zsh
+#!/bin/bash
+
+# Bash 3.2+ (macOS and Ubuntu). Run with bash, not sh.
+set +xv
+set -o pipefail
 
 # USAGE
 #   1. Install sshpass, ssh, and rsync locally, and rsync on every server.
@@ -7,9 +11,9 @@
 #   3. Ensure destination exists and is writable on every remote server.
 #   4. Connect to each server with: ssh your_username@server
 #      Verify its host-key fingerprint through a trusted source before accepting.
-#   5. Run: ~/rsync-multi.zsh
+#   5. Run: ~/rsync-multi.sh
 #      Enter the shared SSH password when prompted; input is hidden.
-#      Preview: ~/rsync-multi.zsh --dry-run
+#      Preview: ~/rsync-multi.sh --dry-run
 #      Dry runs still connect and authenticate, but do not modify remote files.
 #
 # Copies the source file, or directory with its contents, to each server.
@@ -39,8 +43,7 @@ destination="~"
 # Maximum time without transfer I/O before rsync fails (seconds).
 transfer_timeout=120
 
-integer dry_run=0
-typeset -a rsync_options
+dry_run=0
 rsync_options=(-az --partial --progress)
 mode_label="Transfer"
 
@@ -120,13 +123,26 @@ if [[ "$destination" != '~' && "$destination" == *[^a-zA-Z0-9_./-]* ]]; then
   exit 1
 fi
 
-if [[ "$transfer_timeout" != <-> ]] || (( transfer_timeout <= 0 )); then
+if [[ ! "$transfer_timeout" =~ ^[0-9]+$ || ${#transfer_timeout} -gt 9 ]]; then
   printf 'ERROR: transfer_timeout must be a positive integer.\n' >&2
   exit 1
 fi
 
-typeset -a hosts failed_hosts failed_codes failed_times
-hosts=("${(@s:,:)servers}")
+transfer_timeout=$(( 10#$transfer_timeout ))
+if (( transfer_timeout <= 0 )); then
+  printf 'ERROR: transfer_timeout must be a positive integer.\n' >&2
+  exit 1
+fi
+
+hosts=()
+failed_hosts=()
+failed_codes=()
+failed_times=()
+if [[ "$servers" == *$'\n'* || "$servers" == *$'\r'* ]]; then
+  printf 'ERROR: Invalid server list.\n' >&2
+  exit 1
+fi
+IFS=, read -r -a hosts <<< "$servers"
 
 if [[ "$servers" == ,* || "$servers" == *, || "$servers" == *,,* ]]; then
   printf 'ERROR: The server list contains an empty entry.\n' >&2
@@ -146,12 +162,22 @@ trap 'unset SSHPASS' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-read -rs "SSHPASS?SSH password: " || exit 1
-printf '\n'
+if [[ -z "${SSHPASS-}" ]]; then
+  if [[ ! -t 0 ]]; then
+    printf 'ERROR: No interactive terminal; supply SSHPASS securely in the environment.\n' >&2
+    exit 1
+  fi
+  IFS= read -r -s -p 'SSH password: ' SSHPASS || exit 1
+  printf '\n'
+fi
+if [[ -z "$SSHPASS" ]]; then
+  printf 'ERROR: Password must not be empty.\n' >&2
+  exit 1
+fi
 export SSHPASS
 
-integer succeeded=0
-integer started=$SECONDS
+succeeded=0
+started=$SECONDS
 
 if (( dry_run )); then
   printf '\nDRY RUN: Previewing changes only; no files will be transferred.\n'
@@ -198,7 +224,7 @@ printf 'Elapsed:     %ds\n' "$(( SECONDS - started ))"
 
 if (( failure_count > 0 )); then
   printf '\nFailed servers:\n'
-  for (( i = 1; i <= failure_count; i++ )); do
+  for (( i = 0; i < failure_count; i++ )); do
     printf '  %s — exit %d, %ds\n' \
       "${failed_hosts[i]}" "${failed_codes[i]}" "${failed_times[i]}"
   done

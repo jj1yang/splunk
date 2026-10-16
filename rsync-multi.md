@@ -1,49 +1,43 @@
 # Multi-server rsync script
-`rsync-multi.zsh` copies a local file or directory to one or more SSH servers sequentially. Directory transfers include all files and subdirectories. All servers use the same username and password.
+`rsync-multi.sh` copies a local file or a directory including its files and subdirectories, to multiple SSH servers sequentially. All servers use the same username and password.
 
 ## Requirements
-- Run locally with zsh.
+- Run locally with Bash 3.2 or newer (macOS and Ubuntu), not `sh`.
 - Install `sshpass`, `ssh`, and `rsync` locally.
 - Install `rsync` on each remote server.
 - Ensure the remote destination exists and is writable by the SSH account.
 - Connect to each server using `ssh your_username@server` first. Verify the host-key fingerprint through a trusted source before accepting it. The script rejects unknown or changed host keys.
 
 ## Configuration
-Edit the variables near the top of `rsync-multi.zsh`:
+Edit the variables near the top of `rsync-multi.sh`:
 - `servers`: Comma-separated hostnames or IP addresses; currently `jyang03u.sv.splunk.com`. Do not include spaces or empty entries.
 - `username`: SSH username shared by all servers; currently `jimy`.
-- `source_dir`: Existing absolute local file or directory, other than `/`. Despite its name, this variable now accepts a single file. Currently `/Users/jimyang2/Downloads/SP108HowtoSpinupLabstoPracticeandReproduceCustomerIssues (2).pdf`. Keep the value quoted so spaces and parentheses remain part of the path.
-- `destination`: Currently `"~"`, meaning the remote SSH user's home directory. The script sends this as `./`, not the locally expanded home directory. Existing absolute directories such as `/backup` are also supported; absolute paths may contain only letters, digits, underscores, dots, slashes, and hyphens.
+- `source_dir`: Existing absolute local file or directory, other than `/`, such as `/Users/jimyang2/Documents/photos`.
+- `destination`: Currently `"~"`, meaning the remote SSH user's home directory. It is sent as `./` to avoid expanding the local home directory. An existing absolute directory such as `/backup` is also supported; absolute paths may contain only letters, digits, underscores, dots, slashes, and hyphens.
 - `transfer_timeout`: Positive number of seconds without rsync transfer I/O before a transfer fails; defaults to `120`.
 
-Review these machine-specific settings before running elsewhere. The script prompts for the shared password with input hidden; do not put passwords in the script or README.
-
-### Current configured transfer
-- SSH account: `jimy@jyang03u.sv.splunk.com`.
-- Source: the single PDF listed above, not the entire local home directory.
-- Destination: `/home/jimy/SP108HowtoSpinupLabstoPracticeandReproduceCustomerIssues (2).pdf` on the tested server.
-- File-source validation and remote-home destination handling are included in the repository script.
+The configured target is `jimy@jyang03u.sv.splunk.com` with its remote home directory as the destination. Review `source_dir`, which retains the configured PDF path, and replace it with the local file or directory to copy before running. The script prompts for the shared password with input hidden. For noninteractive automation, supply `SSHPASS` securely in the environment. Do not put passwords in the script, README, shell history, or command-line arguments. The script cannot clear an environment variable in its calling shell; clean that up separately.
 
 ## Usage
 The script is executable. From the directory containing it, display help:
 
-```zsh
-./rsync-multi.zsh --help
+```bash
+./rsync-multi.sh --help
 ```
 
 Preview planned changes before transferring:
 
-```zsh
-./rsync-multi.zsh --dry-run
+```bash
+./rsync-multi.sh --dry-run
 ```
 
 Perform transfers:
 
-```zsh
-./rsync-multi.zsh
+```bash
+./rsync-multi.sh
 ```
 
-Alternatively, invoke it with `zsh ./rsync-multi.zsh`.
+Alternatively, invoke it with `bash ./rsync-multi.sh`.
 
 ### Options
 - `--help`, `-h`: Display setup and usage instructions, then exit successfully without checking dependencies, prompting for a password, or connecting to servers.
@@ -53,8 +47,7 @@ Alternatively, invoke it with `zsh ./rsync-multi.zsh`.
 Combining `--dry-run --help` displays help and exits; it does not perform a dry run.
 
 ## Transfer behavior
-- A single source file is copied under its original name into the remote destination.
-- For directory sources, the directory itself is copied. For example, source `/data/photos` and destination `/backup` produce `/backup/photos`.
+- The source directory itself is copied. For example, source `/data/photos` and destination `/backup` produce `/backup/photos`.
 - Archive mode preserves directory structure and supported metadata; compression reduces network traffic.
 - Subsequent runs normally skip files whose size and modification time are unchanged. This is not a full content-checksum comparison.
 - Partial files are retained to assist retries.
@@ -76,11 +69,33 @@ Early validation failures exit before the transfer summary. Interrupted runs do 
 - **Missing dependency:** Install the named program and ensure it is available on `PATH`.
 - **Source validation failure:** Set `source_dir` to an existing absolute file or directory other than `/`.
 - **Host-key verification failure:** Independently verify the server fingerprint and resolve its known-host entry before retrying; do not disable verification.
-- **Authentication failure:** Check the shared username/password and the server's SSH authentication policy. `sshpass` exit code `5` indicates rejected password authentication.
-- **Remote errors:** Confirm that remote rsync is installed and available on the non-interactive SSH command's `PATH`, and that the destination exists and is writable. A remote `rsync: command not found` error requires installing rsync or correcting its path.
+- **Authentication failure:** Check the shared username/password and the server's SSH authentication policy.
+- **Remote errors:** Confirm that remote rsync is installed and the destination exists and is writable.
 - **Failed transfer:** Review the error above the summary, correct the issue, then rerun. Existing unchanged files are normally skipped.
 
-## Validation status
+## Automated tests
+Run both mocked regression suites from this directory:
+
+```bash
+python3 -m unittest -v test_scp_multi test_rsync_multi
+```
+
+Check syntax:
+
+```bash
+bash -n ./rsync-multi.sh
+bash -n ./scp-multi.sh
+```
+
+Tests use temporary configuration copies and fake transfer executables. No real servers are contacted, and no real credentials are used. Set `BASH_UNDER_TEST` to an absolute Bash executable to test a different Bash version. Live transfers have not been verified.
+
+## Migration from zsh
+`rsync-multi.zsh` is now `rsync-multi.sh`, with a `#!/bin/bash` shebang. Update saved commands or scheduled jobs to use the new name. Configuration defaults and rsync transfer behavior are preserved. Bash 3.2+ is supported; this is not a POSIX-sh script.
+
+
+## Historical verification of the original zsh version
+The following record is preserved from the previous repository README. It describes the original zsh script, not end-to-end validation of the Bash migration.
+
 On October 16, 2026, the configured PDF transfer completed successfully after remote rsync was installed and correct authentication was supplied:
 - Transferred size: 8,166,701 bytes.
 - Summary: one succeeded, zero failed; elapsed time four seconds.
