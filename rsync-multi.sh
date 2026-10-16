@@ -9,8 +9,7 @@ set -o pipefail
 #   2. Edit servers, username, source_dir, destination, and transfer_timeout below.
 #      Optional arguments: --dry-run (-n), --help (-h).
 #   3. Ensure destination exists and is writable on every remote server.
-#   4. Connect to each server with: ssh your_username@server
-#      Verify its host-key fingerprint through a trusted source before accepting.
+#   4. Host-key checking is disabled and user known-host keys are not saved.
 #   5. Run: ~/rsync-multi.sh
 #      Enter the shared SSH password when prompted; input is hidden.
 #      Preview: ~/rsync-multi.sh --dry-run
@@ -66,8 +65,7 @@ for argument in "$@"; do
       printf '       destination      Existing writable absolute remote directory, or ~.\n'
       printf '                        Absolute paths use letters, digits, _, ., /, and -.\n'
       printf '       transfer_timeout Positive number of seconds without transfer I/O.\n'
-      printf '  3. Connect with ssh your_username@server to verify each host key.\n'
-      printf '     Check fingerprints through a trusted source before accepting.\n'
+      printf '  3. Host-key checking is disabled and user known-host keys are not saved.\n'
       printf '\nExamples:\n'
       printf '  %s --dry-run  # Preview planned changes first.\n' "$0"
       printf '  %s            # Perform transfers.\n' "$0"
@@ -190,10 +188,10 @@ for host in "${hosts[@]}"; do
   # Archive mode preserves metadata; compression reduces network traffic.
   # Partial files are retained for retries. Destination-only files are NOT
   # deleted. No trailing slash on source means copy the directory itself.
-  # SSH keepalives detect broken connections without bypassing host-key checks.
+  # SSH keepalives detect broken connections; host-key checking is disabled.
   if sshpass -e rsync "${rsync_options[@]}" \
     --timeout="$transfer_timeout" \
-    -e "ssh -o ConnectTimeout=15 -o ConnectionAttempts=1 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=yes" \
+    -e "ssh -o ConnectTimeout=15 -o ConnectionAttempts=1 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
     -- "${source_dir%/}" "$username@$host:${remote_destination%/}/" \
     </dev/null; then
     (( succeeded += 1 ))

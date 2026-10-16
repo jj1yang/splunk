@@ -57,9 +57,9 @@ fi
 for destserver in "${servers[@]}"; do
     remote="${loginuser}@${destserver}"
     printf 'Copying %s to %s:~/Downloads/\n' "${tarballs[0]}" "$remote"
-    sshpass -d 3 ssh -o StrictHostKeyChecking=yes -- "$remote" \
+    sshpass -d 3 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -- "$remote" \
         'mkdir -p "$HOME/Downloads"' 3< <(printf '%s\n' "$password")
-    sshpass -d 3 scp -o StrictHostKeyChecking=yes -- \
+    sshpass -d 3 scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -- \
         "${tarballs[0]}" "${remote}:~/Downloads/" 3< <(printf '%s\n' "$password")
     printf 'File transfer finished: %s to %s:~/Downloads/\n' "${tarballs[0]}" "$remote"
 done

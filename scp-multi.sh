@@ -2,8 +2,7 @@
 # Copies each source itself into an EXISTING directory on every server.
 # Bash 3.2+ alternative to rsync-multi.sh.
 # Requires OpenSSH ssh/scp and sshpass locally; modern scp uses remote SFTP.
-# Verify each host fingerprint using a trusted source before accepting it
-# with ssh. Unknown/changed host keys are rejected here.
+# Host-key checking is disabled and user known-host keys are not saved.
 #
 # SCP overwrites existing files, does not skip unchanged files, does not resume,
 # and provides no transactional rollback. Failed runs can leave partial files.
@@ -47,7 +46,7 @@ usage() {
     "All hosts share the username, password, port, and destination directory." \
     "No destination directories are created; existing files may be overwritten." \
     "" \
-    "Install sshpass and OpenSSH; verify host keys separately before transferring." \
+    "Install sshpass and OpenSSH; host-key checking and user key storage are disabled." \
     "Password input is hidden. For automation, supply SSHPASS in the environment" \
     "from a secret manager; never put a password on the command line." \
     "Connection timeout and SSH keepalives detect many network failures, but" \
@@ -220,7 +219,8 @@ ssh_options=(
   -o ConnectionAttempts=1
   -o ServerAliveInterval=15
   -o ServerAliveCountMax=3
-  -o StrictHostKeyChecking=yes
+  -o StrictHostKeyChecking=no
+  -o UserKnownHostsFile=/dev/null
   -o NumberOfPasswordPrompts=1
 )
 succeeded=0

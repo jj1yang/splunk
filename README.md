@@ -25,7 +25,7 @@ unset SSHPASS
 
 The script removes `SSHPASS` from its own environment before starting transfers and passes the password to `sshpass` through a file descriptor, not command-line arguments. The calling shell retains its exported variable until you unset it. Environment variables are not a secret vault; avoid shell tracing when loading or using credentials.
 
-Host-key checking remains enabled. Verify and accept each server's SSH host key before running unattended transfers.
+The script uses `StrictHostKeyChecking=no` and `UserKnownHostsFile=/dev/null`, so no initial SSH connection or manual host-key acceptance is needed, and `~/.ssh/known_hosts` is not created or updated. This disables persistent server-identity verification and reduces protection against server impersonation; use only with trusted hosts and networks.
 
 See [the directory-transfer guide](SCP_DIRECTORY.md) for installation, validation, and transfer behavior.
 

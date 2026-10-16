@@ -40,7 +40,7 @@ unset SSHPASS
 
 The password is passed to `sshpass` through a file descriptor, not command-line arguments or a password file. The script unsets `SSHPASS` in its own environment before starting transfers; it remains in the calling shell until you unset it there. Do not hard-code passwords or enable shell tracing when loading credentials. Do not run the script with verbose shell tracing (`bash -v`).
 
-Host-key verification is required (`StrictHostKeyChecking=yes`). Before running the script, connect to each server using `ssh LOGINUSER DESTSERVER`, verify its host-key fingerprint through a trusted source, and accept the verified key. Unknown or changed host keys cause the transfer to fail; the script does not automatically trust them.
+The script uses `StrictHostKeyChecking=no` and `UserKnownHostsFile=/dev/null`. No initial SSH connection or manual host-key acceptance is needed, and the script does not create or update `~/.ssh/known_hosts`. This disables persistent server-identity verification and reduces protection against server impersonation; use only with trusted hosts and networks.
 
 The directory itself is created under each remote user's home directory, preserving its contents and nested structure. Servers are processed sequentially. The script stops at the first failed transfer and returns its nonzero exit status; copies to earlier servers are not rolled back. It also exits with an error for a missing source directory, invalid username/server list, missing `sshpass`, or an empty/unreadable password.
 

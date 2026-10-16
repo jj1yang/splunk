@@ -8,16 +8,11 @@ This is a separate alternative to `rsync-multi.sh`. Both transfer scripts have b
 - Install `sshpass`, `ssh`, and `scp` locally and make them available on `PATH`.
 - Remote servers must support SSH command execution for the destination preflight. Modern OpenSSH SCP also requires the remote SFTP subsystem.
 - The destination directory must already exist and be writable and searchable by the SSH account.
-- Verify each server's SSH host-key fingerprint through a trusted source, then accept it using an ordinary SSH connection. The script rejects unknown or changed host keys.
+- No initial SSH connection or manual host-key acceptance is required; see the host-key behavior below.
 - Python 3 is needed only to run the automated tests.
 
-For example, verify a host before using the script:
-
-```bash
-ssh -p 22 archStudent@server1
-```
-
-Do not bypass host-key verification to resolve connection errors.
+### SSH host-key behavior
+Both the SSH preflight and SCP transfers use `StrictHostKeyChecking=no` and `UserKnownHostsFile=/dev/null`. The script does not create or update `~/.ssh/known_hosts`. This disables persistent server-identity verification and reduces protection against server impersonation; use only with trusted hosts and networks.
 
 ## Quick start
 Run these examples from the directory containing the script. Replace server names and source paths with your actual values.
@@ -185,7 +180,7 @@ The Bash migration includes SCP regressions and a separate rsync regression suit
 - **Invalid or unreadable source:** Check spelling, quoting, existence, permissions, and nested entries.
 - **Duplicate destination name:** Rename one selected source or use separate invocations.
 - **Symlink rejected:** Select the intended real file or directory explicitly, or use another tool if link preservation is required.
-- **Host-key error:** Independently verify the fingerprint and correct the known-host entry. Do not disable verification.
+- **Host-key error:** Both SSH and SCP should use `StrictHostKeyChecking=no` and `UserKnownHostsFile=/dev/null`. If an error persists, check the effective SSH configuration, including system-wide known-host entries or additional host-key policies.
 - **Authentication failure:** Check the shared username/password and the server's SSH authentication policy. Multi-factor or unusual interactive authentication may not work with `sshpass`.
 - **Remote preflight failure:** Check connectivity, host keys, authentication, shell-command access, and destination existence and permissions.
 - **SCP/SFTP failure:** Confirm the remote SFTP subsystem is available, sufficient disk space exists, and existing destination files can be written. The script does not force legacy SCP mode.

@@ -60,6 +60,6 @@ fi
 
 for destserver in "${servers[@]}"; do
     remote="${loginuser}@${destserver}"
-    sshpass -d 3 scp -o StrictHostKeyChecking=yes -r -- \
+    sshpass -d 3 scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r -- \
         "$directory" "${remote}:~/" 3< <(printf '%s\n' "$password")
 done

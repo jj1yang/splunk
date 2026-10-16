@@ -6,7 +6,10 @@
 - Install `sshpass`, `ssh`, and `rsync` locally.
 - Install `rsync` on each remote server.
 - Ensure the remote destination exists and is writable by the SSH account.
-- Connect to each server using `ssh your_username@server` first. Verify the host-key fingerprint through a trusted source before accepting it. The script rejects unknown or changed host keys.
+- No initial SSH connection or manual host-key acceptance is required; see the host-key behavior below.
+
+### SSH host-key behavior
+The rsync SSH transport uses `StrictHostKeyChecking=no` and `UserKnownHostsFile=/dev/null`. The script does not create or update `~/.ssh/known_hosts`. This disables persistent server-identity verification and reduces protection against server impersonation; use only with trusted hosts and networks. These options also apply to dry runs, which still connect to the servers.
 
 ## Configuration
 Edit the variables near the top of `rsync-multi.sh`:
@@ -68,7 +71,7 @@ Early validation failures exit before the transfer summary. Interrupted runs do 
 ## Troubleshooting
 - **Missing dependency:** Install the named program and ensure it is available on `PATH`.
 - **Source validation failure:** Set `source_dir` to an existing absolute file or directory other than `/`.
-- **Host-key verification failure:** Independently verify the server fingerprint and resolve its known-host entry before retrying; do not disable verification.
+- **Host-key error:** The rsync SSH transport should use `StrictHostKeyChecking=no` and `UserKnownHostsFile=/dev/null`. If an error persists, check the effective SSH configuration, including system-wide known-host entries or additional host-key policies.
 - **Authentication failure:** Check the shared username/password and the server's SSH authentication policy.
 - **Remote errors:** Confirm that remote rsync is installed and the destination exists and is writable.
 - **Failed transfer:** Review the error above the summary, correct the issue, then rerun. Existing unchanged files are normally skipped.
