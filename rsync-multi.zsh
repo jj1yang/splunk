@@ -12,7 +12,7 @@
 #      Preview: ~/rsync-multi.zsh --dry-run
 #      Dry runs still connect and authenticate, but do not modify remote files.
 #
-# Copies source_dir itself, including files and subdirectories, to each server.
+# Copies the source file, or directory with its contents, to each server.
 # Reruns transfer changed files; destination-only files are not deleted.
 # Failures do not stop other servers; a final report lists failed transfers.
 # Exit status: 0 = all succeeded, 1 = setup/transfer failure,
@@ -20,20 +20,21 @@
 
 # Comma-separated hostnames or IP addresses, without spaces or empty entries.
 # All servers use the same username and password.
-servers="server1,server2,server3"
+servers="jyang03u.sv.splunk.com"
 
 # SSH account used on every server.
-username="your_username"
+username="jimy"
 
-# Absolute path to the local directory to send, including all subdirectories.
-# The directory itself is copied, not just its contents.
-source_dir="/path/to/local-dir"
+# Absolute path to the local file or directory to send.
+# For a directory, the directory itself is copied, not just its contents.
+# Keep paths with spaces or parentheses quoted.
+source_dir="/Users/jimyang2/Downloads/SP108HowtoSpinupLabstoPracticeandReproduceCustomerIssues (2).pdf"
 
-# Existing absolute directory on each remote server.
+# Existing absolute directory on each remote server, or "~" for its SSH home.
 # Example: source /data/photos and destination /backup creates /backup/photos.
 # For compatibility with older rsync versions, avoid whitespace and shell
 # metacharacters in this remote path.
-destination="/remote/path"
+destination="~"
 
 # Maximum time without transfer I/O before rsync fails (seconds).
 transfer_timeout=120
@@ -58,9 +59,9 @@ for argument in "$@"; do
       printf '  2. Edit the configuration variables in this script:\n'
       printf '       servers          Comma-separated hosts, no spaces or empty entries.\n'
       printf '       username         Shared SSH username.\n'
-      printf '       source_dir       Existing absolute local directory, other than /.\n'
-      printf '       destination      Existing writable absolute remote directory.\n'
-      printf '                        Use only letters, digits, _, ., /, and -.\n'
+      printf '       source_dir       Existing absolute local file or directory, not /.\n'
+      printf '       destination      Existing writable absolute remote directory, or ~.\n'
+      printf '                        Absolute paths use letters, digits, _, ., /, and -.\n'
       printf '       transfer_timeout Positive number of seconds without transfer I/O.\n'
       printf '  3. Connect with ssh your_username@server to verify each host key.\n'
       printf '     Check fingerprints through a trusted source before accepting.\n'
@@ -69,7 +70,7 @@ for argument in "$@"; do
       printf '  %s            # Perform transfers.\n' "$0"
       printf '\nEnter the shared SSH password at the hidden prompt.\n'
       printf 'Dry runs also connect and authenticate to each server.\n'
-      printf 'The source directory itself is copied, including files and subdirectories.\n'
+      printf 'Copies the source file, or directory with all files and subdirectories.\n'
       printf 'Reruns transfer changed files; destination-only files are not deleted.\n'
       printf 'Failures do not stop other servers; a final report lists failures.\n'
       printf '\nExit status: 0 = success/help, 1 = setup or transfer failure,\n'
@@ -89,6 +90,13 @@ if (( dry_run )); then
   mode_label="Dry run"
 fi
 
+# A relative "." destination is the remote SSH user's home directory.
+# Do not expand "~" locally: it must refer to the remote account's home.
+remote_destination="$destination"
+if [[ "$destination" == '~' ]]; then
+  remote_destination="."
+fi
+
 for dependency in rsync sshpass ssh; do
   if ! command -v "$dependency" >/dev/null 2>&1; then
     printf 'ERROR: Missing dependency: %s\n' "$dependency" >&2
@@ -96,18 +104,18 @@ for dependency in rsync sshpass ssh; do
   fi
 done
 
-if [[ ! -d "$source_dir" || "$source_dir" != /* || "$source_dir" == / ]]; then
-  printf 'ERROR: Source must be an existing absolute directory other than /.\n' >&2
+if [[ ( ! -f "$source_dir" && ! -d "$source_dir" ) || "$source_dir" != /* || "$source_dir" == / ]]; then
+  printf 'ERROR: Source must be an existing absolute file or directory other than /.\n' >&2
   exit 1
 fi
 
-if [[ -z "$servers" || -z "$username" || "$destination" != /* ]]; then
-  printf 'ERROR: Set servers, username, and an absolute destination path.\n' >&2
+if [[ -z "$servers" || -z "$username" || ( "$destination" != /* && "$destination" != '~' ) ]]; then
+  printf 'ERROR: Set servers, username, and an absolute destination path or ~.\n' >&2
   exit 1
 fi
 
 # Restrict remote paths because older rsync versions pass them through a shell.
-if [[ "$destination" == *[^a-zA-Z0-9_./-]* ]]; then
+if [[ "$destination" != '~' && "$destination" == *[^a-zA-Z0-9_./-]* ]]; then
   printf 'ERROR: Destination may contain only letters, digits, _, ., /, and -.\n' >&2
   exit 1
 fi
@@ -160,7 +168,7 @@ for host in "${hosts[@]}"; do
   if sshpass -e rsync "${rsync_options[@]}" \
     --timeout="$transfer_timeout" \
     -e "ssh -o ConnectTimeout=15 -o ConnectionAttempts=1 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=yes" \
-    -- "${source_dir%/}" "$username@$host:${destination%/}/" \
+    -- "${source_dir%/}" "$username@$host:${remote_destination%/}/" \
     </dev/null; then
     (( succeeded += 1 ))
     printf 'SUCCESS: %s (%ds)\n' \
