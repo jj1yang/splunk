@@ -1,8 +1,12 @@
 # Splunk Universal Forwarder Setup
 
-Adapted from `SPLUNK_SETUP.md`. The procedure below describes fresh installations; the final section separately records this server's completed installation and remaining limitations. Do not rerun extraction or credential initialization on this installed server.
+Adapted from `SPLUNK_SETUP.md`. The procedure below describes fresh installations; the final section separately records a previous host's completed installation and remaining limitations. Do not rerun extraction or credential initialization on a host with an existing installation.
+
+Run on the active host unless another target is explicitly requested. Historical hostnames in the installation record are not prerequisites: do not require the active shell's hostname or IP address to match them. Check the target's actual OS, installation, process, and credential state before proceeding.
 
 Follow the sections in order in Bash, replacing example values first. This guide covers a fresh, standalone Linux tarball installation, not an upgrade or a co-located Enterprise/UF deployment. Stop on errors; a failed subshell does not prevent you from manually running later sections.
+
+Launch first start and authenticated CLI verification directly in an interactive terminal, without a separate approval, manual command handoff, or "done"/"continue" message. The user supplies the UF administrator name and password at the terminal prompts in both cases; password input must remain hidden. Wait for command completion and continue automatically on success. If interactive user input is unavailable, report that limitation rather than inventing credentials or claiming authentication succeeded. Never request passwords in chat or put them in command-line arguments, logs, or this document.
 
 ## Installation
 - Platform used for this installation: Ubuntu 24.04.5 LTS, x86_64. Verify support separately for other hosts and UF releases.
@@ -81,7 +85,31 @@ Run only after checksum verification. This block aborts if the target exists, in
 Do not continue if extraction or ownership setup fails.
 
 ## First start: accept the license and set admin credentials
-Run only on a fresh installation before its first start. `ADMIN_USER` defaults to `admin`. Splunk ignores `user-seed.conf` if `$SPLUNK_HOME/etc/passwd` already exists; this example refuses to overwrite existing credentials or a seed file.
+Run only on a fresh installation before its first start. Use the interactive procedure by default; do not also run the optional seed-file alternative.
+
+### Default: interactive first start
+Launch this block directly in an interactive terminal. The user enters the desired UF administrator name and password, including confirmation, at Splunk's prompts. These are UF credentials, not OS service-account credentials. Do not pass `--no-prompt` or `--answer-yes`; credential prompts must remain available.
+
+```bash
+(
+  set -euo pipefail
+  sudo -v
+  if sudo test -e /opt/splunkforwarder/etc/passwd ||
+     sudo test -L /opt/splunkforwarder/etc/passwd ||
+     sudo test -e /opt/splunkforwarder/etc/system/local/user-seed.conf ||
+     sudo test -L /opt/splunkforwarder/etc/system/local/user-seed.conf; then
+    printf 'Existing credentials or seed file found; inspect before proceeding.\n' >&2
+    exit 1
+  fi
+  sudo -u splunkfwd /opt/splunkforwarder/bin/splunk start --accept-license
+  sudo -u splunkfwd test -s /opt/splunkforwarder/etc/passwd
+)
+```
+
+On success, continue with the remaining applicable setup sections without a separate confirmation. A nonempty credential file does not prove authentication; run authenticated CLI verification below after systemd setup.
+
+### Optional: hashed seed-file alternative
+Use only when explicitly requested instead of interactive first start. `ADMIN_USER` defaults to `admin`. Splunk ignores `user-seed.conf` if `$SPLUNK_HOME/etc/passwd` already exists; this example refuses to overwrite existing credentials or a seed file.
 
 Use a salted SHA-512 crypt hash (`HASHED_PASSWORD`) instead of a plaintext `PASSWORD` configuration value. Ubuntu's `openssl passwd -6 -stdin` produces this format without putting the password in command-line arguments. Hashing avoids configuration escaping problems, including passwords ending in a backslash. For environments with additional cryptographic restrictions, use an approved hash-generation procedure.
 
@@ -242,13 +270,15 @@ sudo -u splunkfwd /opt/splunkforwarder/bin/splunk btool deploymentclient list --
 Authenticate interactively when prompted. Confirm the deployment server lists the client and expected apps arrive under `/opt/splunkforwarder/etc/apps`. Recheck inputs/outputs and receiver connectivity after deployment. Avoid conflicting local configuration: `etc/system/local` settings can override settings delivered in apps. See [CLI configuration and enrollment](https://help.splunk.com/en/splunk-enterprise/forward-and-process-data/forwarding-and-receiving-data/10.4/configure-forwarders/configure-the-universal-forwarder-using-configuration-files).
 
 ## Verification and logs
-Check service, process, and receiver status:
+Check service, process, and receiver status directly in the same interactive setup session:
 
 ```bash
 sudo systemctl status SplunkForwarder.service --no-pager
 sudo -u splunkfwd /opt/splunkforwarder/bin/splunk status
 sudo -u splunkfwd /opt/splunkforwarder/bin/splunk list forward-server
 ```
+
+The `list forward-server` command is the authenticated CLI verification. Launch it directly without a separate approval or manual command handoff. The user supplies the UF administrator name and password at the CLI prompts when required; an existing valid cached session may avoid prompts. Keep password input hidden and do not use `-auth username:password`. Inspect the command's exit status and output, then continue automatically on success instead of asking the user to report the result. Stop and resolve authentication failures before marking verification complete. For install-only setup, both active and configured-but-inactive lists must show `None`.
 
 Inspect effective forwarding and input configuration. `btool` shows configuration, not receiver connectivity. Its output may contain sensitive settings; redact it before sharing.
 
@@ -294,7 +324,7 @@ fi
 ```
 
 ## Final installation record — 2026-10-19 UTC
-This section records the completed work on `ip-10-236-40-185`; it is not a claim that forwarding is configured or that startup logs are error-free.
+This historical section records the completed work on a previous host; it does not identify or restrict the target for future runs, and it is not a claim that forwarding is configured or that startup logs are error-free.
 
 ### Installed software and service
 - OS: Ubuntu 24.04.5 LTS, x86_64.
