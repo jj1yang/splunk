@@ -6,6 +6,8 @@ Run on the active host unless another target is explicitly requested. Historical
 
 Follow the sections in order in Bash, replacing example values first. This guide covers a fresh, standalone Linux tarball installation, not an upgrade or a co-located Enterprise/UF deployment. Stop on errors; a failed subshell does not prevent you from manually running later sections.
 
+Always accept the Splunk license noninteractively with `--accept-license`; never launch the license pager or ask for interactive license confirmation. This accepts the agreement rather than disabling license enforcement. Before the first successful start, do not run bare Splunk CLI checks such as `splunk version` or `splunk status`: they can trigger first-run license and credential initialization. Read `/opt/splunkforwarder/etc/splunk.version` to check the extracted version/build without invoking the CLI. Make `splunk start --accept-license` the first Splunk CLI invocation after extraction, and keep `--accept-license` on subsequent explicit start commands. Leave administrator credential prompts enabled.
+
 Launch first start and authenticated CLI verification directly in an interactive terminal, without a separate approval, manual command handoff, or "done"/"continue" message. The user supplies the UF administrator name and password at the terminal prompts in both cases; password input must remain hidden. Wait for command completion and continue automatically on success. If interactive user input is unavailable, report that limitation rather than inventing credentials or claiming authentication succeeded. Never request passwords in chat or put them in command-line arguments, logs, or this document.
 
 ## Installation
@@ -184,7 +186,7 @@ Do not run `add forward-server` before configuring TLS: the UF is already runnin
 2. While stopped, install approved CA certificates and, if required by the receiver, a client certificate/private key with restrictive ownership and permissions.
 3. Configure the receiver group and TLS settings together in `/opt/splunkforwarder/etc/system/local/outputs.conf` or an approved app. Configure trusted CA validation and receiver identity/hostname validation; encryption alone is insufficient. Follow the selected release's [forwarding TLS procedure](https://help.splunk.com/en/splunk-enterprise/administer/manage-users-and-security/9.4/secure-splunk-platform-communications-with-transport-layer-security-certificates/configure-splunk-indexing-and-forwarding-to-use-tls-certificates). Do not disable certificate checks to work around failures.
 4. Review effective configuration with `sudo -u splunkfwd /opt/splunkforwarder/bin/splunk btool outputs list --debug` before starting. Protect the output because it can contain sensitive settings.
-5. Start with `sudo -u splunkfwd /opt/splunkforwarder/bin/splunk start`, inspect forwarding/TLS errors, and confirm the receiver reports encryption before adding application inputs.
+5. Start with `sudo -u splunkfwd /opt/splunkforwarder/bin/splunk start --accept-license`, inspect forwarding/TLS errors, and confirm the receiver reports encryption before adding application inputs.
 
 For Splunk Cloud Platform, use the stack-specific UF Credentials package and Cloud onboarding instructions instead of the generic on-premises TLS procedure or plaintext example. If a deployment server manages outputs, prepare its approved TLS app before enrolling the UF.
 
