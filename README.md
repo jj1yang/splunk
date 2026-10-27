@@ -29,6 +29,16 @@ The script uses `StrictHostKeyChecking=no` and `UserKnownHostsFile=/dev/null`, s
 
 See [the directory-transfer guide](SCP_DIRECTORY.md) for installation, validation, and transfer behavior.
 
+## Lab server addresses
+
+`set-lab-ips.sh` exports public and private IP addresses for `SH1`, `MC1`, `IDX1`, `IDX2`, and `UF1`, plus a comma-delimited `LAB_SERVERS` list. Source it so the variables persist in the current shell:
+
+```bash
+source ./set-lab-ips.sh
+```
+
+See [the lab IP guide](SET_LAB_IPS.md) for the address table and usage with the transfer scripts.
+
 ## Tests
 
 ```bash
