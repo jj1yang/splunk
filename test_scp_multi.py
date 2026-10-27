@@ -136,10 +136,14 @@ class ScpMultiTests(unittest.TestCase):
                 args[args.index("--") + 1:],
                 [str(self.file), str(self.directory), f"tester@{host}:./"],
             )
-            for option in ("-r", "-p", "StrictHostKeyChecking=yes",
+            for option in ("-r", "-p", "StrictHostKeyChecking=no",
+                           "UserKnownHostsFile=/dev/null",
                            "ConnectionAttempts=1", "NumberOfPasswordPrompts=1",
                            "ServerAliveInterval=15", "ServerAliveCountMax=3"):
                 self.assertIn(option, args)
+        for args in self.calls("ssh"):
+            self.assertIn("StrictHostKeyChecking=no", args)
+            self.assertIn("UserKnownHostsFile=/dev/null", args)
         for args in self.calls("sshpass"):
             self.assertEqual(args[0], "-e")
             self.assertNotIn(self.env["SSHPASS"], args)

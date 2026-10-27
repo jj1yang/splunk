@@ -55,7 +55,8 @@ class ScpDirectoryTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(
                     result.stdout.splitlines(),
-                    ["-o", "StrictHostKeyChecking=yes", "-r", "--",
+                    ["-o", "StrictHostKeyChecking=no", "-o",
+                     "UserKnownHostsFile=/dev/null", "-r", "--",
                      f"./{name}", "user@server:~/"],
                 )
 
@@ -66,7 +67,8 @@ class ScpDirectoryTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout.splitlines(),
-            ["-o", "StrictHostKeyChecking=yes", "-r", "--",
+            ["-o", "StrictHostKeyChecking=no", "-o",
+             "UserKnownHostsFile=/dev/null", "-r", "--",
              str(directory), "user@server:~/"],
         )
 
@@ -76,7 +78,8 @@ class ScpDirectoryTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         expected = []
         for server in ("server1", "server2.example.com", "192.0.2.10"):
-            expected.extend(["-o", "StrictHostKeyChecking=yes", "-r", "--",
+            expected.extend(["-o", "StrictHostKeyChecking=no", "-o",
+                             "UserKnownHostsFile=/dev/null", "-r", "--",
                              "./normal", f"user@{server}:~/"])
         self.assertEqual(result.stdout.splitlines(), expected)
         self.assertNotIn("test password", result.stdout + result.stderr)

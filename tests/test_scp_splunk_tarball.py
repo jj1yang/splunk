@@ -59,9 +59,11 @@ class ScpSplunkTarballTests(unittest.TestCase):
                 expected = []
                 for server in servers.split(","):
                     expected.extend([
-                        "ssh", "-o", "StrictHostKeyChecking=yes", "--",
+                        "ssh", "-o", "StrictHostKeyChecking=no", "-o",
+                        "UserKnownHostsFile=/dev/null", "--",
                         f"user@{server}", 'mkdir -p "$HOME/Downloads"',
-                        "scp", "-o", "StrictHostKeyChecking=yes", "--",
+                        "scp", "-o", "StrictHostKeyChecking=no", "-o",
+                        "UserKnownHostsFile=/dev/null", "--",
                         "./splunk-test.tgz", f"user@{server}:~/Downloads/",
                     ])
                 self.assertEqual(self.calls(), expected)

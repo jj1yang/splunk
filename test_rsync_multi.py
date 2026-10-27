@@ -78,7 +78,9 @@ class RsyncMultiTests(unittest.TestCase):
             self.assertEqual(args[-2:], [str(self.file), f"tester@{host}:./"])
             for option in ("-az", "--partial", "--progress", "--timeout=120"):
                 self.assertIn(option, args)
-            self.assertIn("StrictHostKeyChecking=yes", args[args.index("-e") + 1])
+            ssh_command = args[args.index("-e") + 1]
+            self.assertIn("StrictHostKeyChecking=no", ssh_command)
+            self.assertIn("UserKnownHostsFile=/dev/null", ssh_command)
             self.assertNotIn("--delete", args)
         self.assertNotIn(self.env["SSHPASS"], result.stdout + result.stderr)
         self.assertNotIn(self.env["SSHPASS"], self.log.read_text())
