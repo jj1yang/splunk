@@ -6,7 +6,7 @@
 source ./set-lab-ips.sh
 ```
 
-Public addresses are for SSH and SCP from outside the lab. Private addresses are the in-lab `10.0.1.0/24` addresses used between Splunk nodes. `LAB_SERVERS` is the public addresses joined with commas, in the order `SH1`, `MC1`, `IDX1`, `IDX2`, `UF1`, so it can be passed to the comma-delimited server scripts in this directory.
+Public addresses are for SSH and SCP from outside the lab. Private addresses are the in-lab `10.0.1.0/24` addresses used between Splunk nodes. In the static `set-lab-ips.sh`, `LAB_SERVERS` is the public addresses joined with commas, in the order `SH1`, `MC1`, `IDX1`, `IDX2`, `UF1`, so it can be passed to the comma-delimited server scripts in this directory. The live script described below instead separates non-UF servers into `LAB_SERVERS` and UFs into `LAB_UF_SERVERS`.
 
 | Variable | Role | Address |
 |---|---|---|
@@ -39,7 +39,9 @@ These addresses belong to one lab session. When the lab is rebuilt, update the a
 
 ## Live lab mapping: `set-lab-ips_live.sh`
 
-Use `set-lab-ips_live.sh` instead of editing hardcoded IP assignments for each new lab. It follows the same variable naming and host order as `set-lab-ips.sh`, but reads IPs and credentials from a Markdown table every time it is sourced. It supports Bash and zsh and requires `python3`.
+Use `set-lab-ips_live.sh` instead of editing hardcoded IP assignments for each new lab. It retains the individual host variable names from `set-lab-ips.sh`, but reads IPs and credentials from a Markdown table every time it is sourced. It supports Bash and zsh and requires `python3`.
+
+The live script exports `LAB_SERVERS` for the non-UF hosts (`SH1,MC1,IDX1,IDX2`) and `LAB_UF_SERVERS` for the universal forwarder (`UF1`), using public addresses. It also generates `set-ip_env.sh` in the **current working directory**, containing all lab exports for reuse in another shell.
 
 ### Update process
 
@@ -77,10 +79,17 @@ For the current table, “admin user” corresponds to `Splunk User Name`, “lo
    source ./set-lab-ips_live.sh
    ```
 
-5. Review the printed IP summary. Verify that public addresses are externally routable and private addresses belong to the lab network; the script validates IPv4 syntax but does not correct reversed column labels.
-6. After a lab rebuild, replace the table with the new mapping and source the script again. There is no need to edit IP assignments in the script.
+5. Review the printed IP summary, including `LAB_SERVERS` (four non-UF hosts) and `LAB_UF_SERVERS` (`UF1`). Verify that public addresses are externally routable and private addresses belong to the lab network; the script validates IPv4 syntax but does not correct reversed column labels. A successful load also creates or replaces `./set-ip_env.sh`.
+6. In another shell, source the generated file from its directory:
 
-Executing the script directly cannot update the parent shell and is rejected. If loading fails, it returns a nonzero status without replacing the previously exported IPs or credentials; do not use stale values. When chaining an operation, use `source ./set-lab-ips_live.sh && ...` so it runs only after a successful load.
+   ```bash
+   source ./set-ip_env.sh
+   ```
+
+   This restores all saved lab exports without rereading the Markdown table or requiring Python. If you are in a different directory, use the generated file's actual path.
+7. After a lab rebuild, replace the table with the new mapping and source `set-lab-ips_live.sh` again to refresh both the current shell and `set-ip_env.sh`. Sourcing an old generated file does not refresh its saved values.
+
+Executing the live script directly cannot update the parent shell and is rejected. If loading or writing the generated file fails, it returns a nonzero status without replacing the previously exported IPs or credentials or a previously generated environment file; do not use stale values. The output directory must be writable. When chaining an operation, use `source ./set-lab-ips_live.sh && ...` so it runs only after a successful load.
 
 ### Exported variables
 
@@ -88,13 +97,20 @@ Executing the script directly cannot update the parent shell and is rejected. If
 |---|---|
 | `SH1`, `MC1`, `IDX1`, `IDX2`, `UF1` | `Public IP` for the corresponding role |
 | `SH1_PRIV`, `MC1_PRIV`, `IDX1_PRIV`, `IDX2_PRIV`, `UF1_PRIV` | `Private IP` for the corresponding role |
-| `LAB_SERVERS` | Comma-separated public IPs in `SH1,MC1,IDX1,IDX2,UF1` order |
+| `LAB_SERVERS` | Comma-separated non-UF public IPs in `SH1,MC1,IDX1,IDX2` order |
+| `LAB_UF_SERVERS` | UF public IPs; currently the single `UF1` address |
 | `ADMIN_USER` | `Splunk User Name` |
 | `LOGIN_USER` | `SSH Username` |
 | `ADMIN_PASSWORD`, `LOGIN_PASSWORD`, `SSHPASS` | The shared `Password` column |
 | `LAB_SERVER_FILE` | Selected Markdown file path |
 
-The table supplies a single shared password, not separate admin and SSH passwords. Passwords are exported into the shell environment, but are not embedded in the script or printed in its summary. Do not use `set -x`, dump the environment, or commit the credential-bearing Markdown file. `sshpass -e` reads `SSHPASS` without placing the password in command arguments.
+The table supplies a single shared password, not separate admin and SSH passwords. Passwords are exported into the shell environment and saved in `set-ip_env.sh`, but are not embedded in `set-lab-ips_live.sh` or printed in its summary. Do not use `set -x`, dump the environment, display the generated file with `cat`, or commit either credential-bearing file. `sshpass -e` reads `SSHPASS` without placing the password in command arguments.
+
+### Generated environment file
+
+`set-ip_env.sh` contains shell-quoted `export` statements for every variable in the table above, including `LAB_SERVER_FILE`, both server lists, and the credentials. It is a snapshot of the most recent successful load, not a copy of the entire shell environment.
+
+The file is written atomically with owner-only read/write permissions (`600`). The repository's `.gitignore` excludes `set-ip_env.sh` and its temporary `.set-ip_env.*` files. Files generated elsewhere, such as `~/Downloads`, still contain plaintext credentials and should be kept private.
 
 ### Using the loaded mapping
 
@@ -112,20 +128,34 @@ sshpass -e ssh "${LOGIN_USER}@${SH1}"
 
 Verify an unfamiliar server's host-key fingerprint before accepting it. These commands retain normal SSH host-key checks.
 
-To copy a directory to all five public addresses:
+To copy a directory to the four non-UF servers:
 
 ```bash
 source ./set-lab-ips_live.sh &&
   ./scp-directory.sh "$LOGIN_USER" "$LAB_SERVERS" 'core_consultant_lab1'
 ```
 
-The directory transfer script uses the exported `SSHPASS` without prompting. This command performs an actual transfer. Use `_PRIV` addresses for Splunk communication between lab servers, not public addresses or public DNS.
+To target only the universal forwarder after loading the mapping:
+
+```bash
+./scp-directory.sh "$LOGIN_USER" "$LAB_UF_SERVERS" 'core_consultant_lab2'
+```
+
+To target all five hosts explicitly:
+
+```bash
+./scp-directory.sh "$LOGIN_USER" "$LAB_SERVERS,$LAB_UF_SERVERS" 'core_consultant_lab2'
+```
+
+The directory transfer script uses the exported `SSHPASS` without prompting. These commands perform actual transfers. Use `_PRIV` addresses for Splunk communication between lab servers, not public addresses or public DNS.
 
 When finished, remove credential variables from the current shell:
 
 ```bash
 unset ADMIN_PASSWORD LOGIN_PASSWORD SSHPASS
 ```
+
+This does not remove credentials saved in `set-ip_env.sh`; remove that file separately when it is no longer needed.
 
 ### Verified lab session — 2026-10-30 UTC
 

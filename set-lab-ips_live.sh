@@ -4,6 +4,9 @@
 #
 #   source ./set-lab-ips_live.sh
 #
+# Also generates ./set-ip_env.sh for sourcing these values in another shell.
+# The generated file contains credentials and is readable only by its owner.
+#
 # Public addresses are for SSH/SCP from outside the lab.
 # Private addresses are for communication between lab servers.
 
@@ -18,8 +21,10 @@ fi
 export LAB_SERVER_FILE="${LAB_SERVER_FILE:-$HOME/Downloads/new_lab_server.md}"
 if ! _lab_settings=$(python3 - "$LAB_SERVER_FILE" <<'PY'
 import ipaddress
+import os
 import shlex
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -55,16 +60,45 @@ try:
         ipaddress.IPv4Address(public)
         ipaddress.IPv4Address(private)
         settings.extend(((host.upper(), public), (host.upper() + "_PRIV", private)))
-    settings.append(("LAB_SERVERS", ",".join(records[host][0] for host in hosts)))
+    settings.extend((
+        ("LAB_SERVERS", ",".join(
+            records[host][0] for host in hosts if not host.startswith("uf")
+        )),
+        ("LAB_UF_SERVERS", ",".join(
+            records[host][0] for host in hosts if host.startswith("uf")
+        )),
+    ))
     settings.extend((
         ("ADMIN_USER", admin), ("ADMIN_PASSWORD", password),
         ("LOGIN_USER", login), ("LOGIN_PASSWORD", password),
         ("SSHPASS", password),
+        ("LAB_SERVER_FILE", sys.argv[1]),
     ))
-    for name, value in settings:
-        print(f"export {name}={shlex.quote(value)}")
+    exports = "".join(
+        f"export {name}={shlex.quote(value)}\n" for name, value in settings
+    )
+    output = Path("set-ip_env.sh")
+    temporary = None
+    try:
+        # NamedTemporaryFile creates the file with owner-only permissions (0600).
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=output.parent,
+            prefix=".set-ip_env.", delete=False,
+        ) as stream:
+            temporary = Path(stream.name)
+            stream.write(
+                "#!/usr/bin/env bash\n"
+                "# Generated lab environment; contains credentials. Do not commit.\n"
+                "# Load with: source ./set-ip_env.sh\n" + exports
+            )
+        os.replace(temporary, output)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    print(exports, end="")
 except (OSError, ValueError, IndexError):
-    print("Cannot load lab settings; check the table, hosts, IPs, and shared credentials.",
+    print("Cannot load lab settings or write set-ip_env.sh; check the table, hosts, "
+          "IPs, shared credentials, and output directory permissions.",
           file=sys.stderr)
     sys.exit(1)
 PY
@@ -82,4 +116,7 @@ printf '  IDX1=%s IDX1_PRIV=%s\n' "$IDX1" "$IDX1_PRIV"
 printf '  IDX2=%s IDX2_PRIV=%s\n' "$IDX2" "$IDX2_PRIV"
 printf '  UF1=%s   UF1_PRIV=%s\n' "$UF1" "$UF1_PRIV"
 printf '  LAB_SERVERS=%s\n' "$LAB_SERVERS"
+printf '  LAB_UF_SERVERS=%s\n' "$LAB_UF_SERVERS"
 printf '  Admin/login credentials loaded (passwords hidden).\n'
+printf '  Saved all lab exports to ./set-ip_env.sh (owner-only permissions).\n'
+printf '  Load in another shell with: source ./set-ip_env.sh\n'
