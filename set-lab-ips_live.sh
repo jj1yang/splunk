@@ -34,9 +34,17 @@ try:
         if line.strip().startswith("|")
     ]
     header = [cell.lower() for cell in rows[0]]
+    splunk_user_column = next(
+        (i for i, name in enumerate(header)
+         if name in ("splunk user name", "splunk username")),
+        None,
+    )
+    if splunk_user_column is None:
+        raise ValueError("Missing Splunk username column")
     columns = [header.index(name) for name in (
         "role", "public ip", "private ip",
-        "splunk user name", "password", "ssh username",
+    )] + [splunk_user_column] + [header.index(name) for name in (
+        "password", "ssh username",
     )]
     hosts = ("sh1", "mc1", "idx1", "idx2", "uf1")
     records = {}
